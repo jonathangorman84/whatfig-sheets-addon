@@ -129,12 +129,23 @@
         const numAnchors   = channelFirst ? shape[2] : shape[1];
         const boxes = [];
         for (let a = 0; a < numAnchors; a++) {
-          const cx   = channelFirst ? data[0*numAnchors+a] : data[a*5+0];
-          const cy   = channelFirst ? data[1*numAnchors+a] : data[a*5+1];
-          const w    = channelFirst ? data[2*numAnchors+a] : data[a*5+2];
-          const h    = channelFirst ? data[3*numAnchors+a] : data[a*5+3];
-          const conf = channelFirst ? data[4*numAnchors+a] : data[a*5+4];
-          if (conf > CONF_THRESHOLD) boxes.push({cx, cy, w, h, conf});
+          const rawCx = channelFirst ? data[0 * numAnchors + a] : data[a * 5 + 0];
+          const rawCy = channelFirst ? data[1 * numAnchors + a] : data[a * 5 + 1];
+          const rawW = channelFirst ? data[2 * numAnchors + a] : data[a * 5 + 2];
+          const rawH = channelFirst ? data[3 * numAnchors + a] : data[a * 5 + 3];
+          const conf = channelFirst ? data[4 * numAnchors + a] : data[a * 5 + 4];
+
+          if (!Number.isFinite(rawCx) || !Number.isFinite(rawCy) || !Number.isFinite(rawW) || !Number.isFinite(rawH) || !Number.isFinite(conf)) {
+            continue;
+          }
+
+          const normalized = Math.abs(rawCx) <= 2 && Math.abs(rawCy) <= 2 && Math.abs(rawW) <= 2 && Math.abs(rawH) <= 2;
+          const cx = normalized ? rawCx * 640 : rawCx;
+          const cy = normalized ? rawCy * 640 : rawCy;
+          const w = Math.max(2, normalized ? rawW * 640 : rawW);
+          const h = Math.max(2, normalized ? rawH * 640 : rawH);
+
+          if (conf > CONF_THRESHOLD) boxes.push({ cx, cy, w, h, conf });
         }
 
         const finalBoxes = nms(boxes);
@@ -148,14 +159,15 @@
         const sx = originalImg.width / 640, sy = originalImg.height / 640;
         const PAD = 0.10;
         finalBoxes.forEach(function(box) {
-          const bw = box.w * sx, bh = box.h * sy;
-          const cropX = Math.max(0, box.cx*sx - bw/2 - bw*PAD);
-          const cropY = Math.max(0, box.cy*sy - bh/2 - bh*PAD);
-          const cropW = Math.min(originalImg.width  - cropX, bw*(1+PAD*2));
-          const cropH = Math.min(originalImg.height - cropY, bh*(1+PAD*2));
+          const bw = Math.max(2, box.w * sx), bh = Math.max(2, box.h * sy);
+          const cropX = Math.max(0, box.cx * sx - bw / 2 - bw * PAD);
+          const cropY = Math.max(0, box.cy * sy - bh / 2 - bh * PAD);
+          const cropW = Math.max(2, Math.min(originalImg.width - cropX, bw * (1 + PAD * 2)));
+          const cropH = Math.max(2, Math.min(originalImg.height - cropY, bh * (1 + PAD * 2)));
           const cc = document.createElement('canvas');
-          cc.width = cropW; cc.height = cropH;
-          cc.getContext('2d').drawImage(originalImg, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+          cc.width = Math.round(cropW);
+          cc.height = Math.round(cropH);
+          cc.getContext('2d').drawImage(originalImg, cropX, cropY, cropW, cropH, 0, 0, cc.width, cc.height);
           croppedBase64Images.push(cc.toDataURL('image/jpeg', 0.7).split(',')[1]);
         });
 
