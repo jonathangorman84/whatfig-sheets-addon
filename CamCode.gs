@@ -161,11 +161,10 @@ function doGet(e) {
 function showQRCode() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ssId = ss.getId();
-  const sheet = ss.getSheetByName('Settings');
-  const webAppUrl = sheet ? sheet.getRange('B2').getValue() : '';
+  const webAppUrl = getWhatFigConfig_(CONFIG_KEYS.WEB_APP_URL, '');
   
   if (!webAppUrl || !webAppUrl.startsWith('http')) {
-    SpreadsheetApp.getUi().alert('Missing URL: Please paste your Web App URL into cell B2 of the Settings tab.');
+    SpreadsheetApp.getUi().alert('Missing Web App URL in Script Properties. Use "Sync Settings to Script Properties" from the menu.');
     return;
   }
   
@@ -187,11 +186,10 @@ function showQRCode() {
 function showCustomQRCode() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ssId = ss.getId();
-  const sheet = ss.getSheetByName('Settings');
-  const webAppUrl = sheet ? sheet.getRange('B2').getValue() : '';
+  const webAppUrl = getWhatFigConfig_(CONFIG_KEYS.WEB_APP_URL, '');
   
   if (!webAppUrl || !webAppUrl.startsWith('http')) {
-    SpreadsheetApp.getUi().alert('Missing URL: Please paste your Web App URL into cell B2 of the Settings tab.');
+    SpreadsheetApp.getUi().alert('Missing Web App URL in Script Properties. Use "Sync Settings to Script Properties" from the menu.');
     return;
   }
   
@@ -420,11 +418,10 @@ function doGet(e) {
 function showQRCode() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ssId = ss.getId();
-  const sheet = ss.getSheetByName('Settings');
-  const webAppUrl = sheet ? sheet.getRange('B2').getValue() : '';
+  const webAppUrl = getWhatFigConfig_(CONFIG_KEYS.WEB_APP_URL, '');
   
   if (!webAppUrl || !webAppUrl.startsWith('http')) {
-    SpreadsheetApp.getUi().alert('Missing URL: Please paste your Web App URL into cell B2 of the Settings tab.');
+    SpreadsheetApp.getUi().alert('Missing Web App URL in Script Properties. Use "Sync Settings to Script Properties" from the menu.');
     return;
   }
   
@@ -446,11 +443,10 @@ function showQRCode() {
 function showCustomQRCode() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ssId = ss.getId();
-  const sheet = ss.getSheetByName('Settings');
-  const webAppUrl = sheet ? sheet.getRange('B2').getValue() : '';
+  const webAppUrl = getWhatFigConfig_(CONFIG_KEYS.WEB_APP_URL, '');
   
   if (!webAppUrl || !webAppUrl.startsWith('http')) {
-    SpreadsheetApp.getUi().alert('Missing URL: Please paste your Web App URL into cell B2 of the Settings tab.');
+    SpreadsheetApp.getUi().alert('Missing Web App URL in Script Properties. Use "Sync Settings to Script Properties" from the menu.');
     return;
   }
   
