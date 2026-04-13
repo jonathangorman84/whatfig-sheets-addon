@@ -47,6 +47,8 @@ function getEffectiveCustomDescription_() {
   return getWhatFigConfig_(CONFIG_KEYS.DEFAULT_CUSTOM_DESC, getEffectiveListingDescription_());
 }
 
+// Owner-only helper. Run manually from the Apps Script editor when you need
+// to refresh published defaults from the setup sheet tabs.
 function syncSettingsToScriptProperties() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const settingsSheet = ss.getSheetByName('Settings');
@@ -79,7 +81,6 @@ function useDefaultListingDescription() {
 
 function promptForCustomListingDescription() {
   const ui = SpreadsheetApp.getUi();
-  const currentDescription = getEffectiveListingDescription_();
   const response = ui.prompt(
     'Set Listing Description',
     'Enter the listing description to use for this spreadsheet.',
@@ -176,10 +177,6 @@ function onOpen() {
         .addItem('Use Default Description', 'useDefaultListingDescription')
         .addItem('Set Custom Description...', 'promptForCustomListingDescription')
         .addItem('Show Current Description', 'showCurrentListingDescription')
-    )
-    .addSubMenu(
-      ui.createMenu('Config')
-        .addItem('Sync Settings to Script Properties', 'syncSettingsToScriptProperties')
     )
     .addSeparator()
     .addSubMenu(

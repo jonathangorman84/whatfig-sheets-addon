@@ -164,7 +164,7 @@ function showQRCode() {
   const webAppUrl = getWhatFigConfig_(CONFIG_KEYS.WEB_APP_URL, '');
   
   if (!webAppUrl || !webAppUrl.startsWith('http')) {
-    SpreadsheetApp.getUi().alert('Missing Web App URL in Script Properties. Use "Sync Settings to Script Properties" from the menu.');
+    SpreadsheetApp.getUi().alert('WhatFig is not fully configured yet. The add-on owner must set the published Web App URL.');
     return;
   }
   
@@ -189,7 +189,7 @@ function showCustomQRCode() {
   const webAppUrl = getWhatFigConfig_(CONFIG_KEYS.WEB_APP_URL, '');
   
   if (!webAppUrl || !webAppUrl.startsWith('http')) {
-    SpreadsheetApp.getUi().alert('Missing Web App URL in Script Properties. Use "Sync Settings to Script Properties" from the menu.');
+    SpreadsheetApp.getUi().alert('WhatFig is not fully configured yet. The add-on owner must set the published Web App URL.');
     return;
   }
   
@@ -421,7 +421,7 @@ function showQRCode() {
   const webAppUrl = getWhatFigConfig_(CONFIG_KEYS.WEB_APP_URL, '');
   
   if (!webAppUrl || !webAppUrl.startsWith('http')) {
-    SpreadsheetApp.getUi().alert('Missing Web App URL in Script Properties. Use "Sync Settings to Script Properties" from the menu.');
+    SpreadsheetApp.getUi().alert('WhatFig is not fully configured yet. The add-on owner must set the published Web App URL.');
     return;
   }
   
@@ -446,7 +446,7 @@ function showCustomQRCode() {
   const webAppUrl = getWhatFigConfig_(CONFIG_KEYS.WEB_APP_URL, '');
   
   if (!webAppUrl || !webAppUrl.startsWith('http')) {
-    SpreadsheetApp.getUi().alert('Missing Web App URL in Script Properties. Use "Sync Settings to Script Properties" from the menu.');
+    SpreadsheetApp.getUi().alert('WhatFig is not fully configured yet. The add-on owner must set the published Web App URL.');
     return;
   }
   
