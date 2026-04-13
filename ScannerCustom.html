@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f4f4; }
+    .btn { color: white; padding: 18px; font-size: 18px; border: none; border-radius: 10px; width: 100%; display: block; margin-top: 15px; font-weight: bold; cursor: pointer; box-sizing: border-box;}
+    .btn-ai { background: #2e7d32; }
+    .btn-single { background: #516BA1; }
+    .btn-upload { background: #d35400; margin-top: 20px; }
+    input[type="file"] { display: none; }
+    #preview-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-top: 20px; }
+    .preview-wrapper { position: relative; max-width: 22%; display: inline-block; }
+    .crop-preview { width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border: 2px solid #516BA1; display: block; }
+    .preview-checkbox { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; cursor: pointer; accent-color: #2e7d32; box-shadow: 0 2px 4px rgba(0,0,0,0.3); border-radius: 4px; }
+    #status { margin-top: 20px; font-size: 18px; font-weight: bold; color: #333; }
+    .loader { border: 4px solid #f3f3f3; border-top: 4px solid #516BA1; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; display: none; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/tf-tflite.min.js"></script>
+</head>
+<body>
+  <h2>WhatFig Custom Scanner</h2>
+
+  <label class="btn btn-single">
+    Single Minifig (Direct)
+    <input type="file" accept="image/*" capture="environment" id="cameraInputSingle">
+  </label>
+
+  <label class="btn btn-ai">
+    AI Batch Scan (Multiple)
+    <input type="file" accept="image/*" capture="environment" id="cameraInputBatch">
+  </label>
+
+  <div id="loader" class="loader"></div>
+  <div id="status">Loading AI model...</div>
+
+  <button class="btn btn-upload" id="uploadBtn" style="display:none;" onclick="uploadImages()">
+    Send Selected to Spreadsheet
+  </button>
+
+  <div id="preview-container"></div>
+
+  <script>
+    const MODEL_URL = 'https://raw.githubusercontent.com/jonathangorman84/whatfig-sheets-addon/main/model/best_float16.tflite';
+    const CONF_THRESHOLD = 0.40;
+    const IOU_THRESHOLD  = 0.45;
+    const SPREADSHEET_ID = '<?= ssId ?>';
+
+    let croppedBase64Images = [];
+    let tfliteModel = null;
+    let modelReady  = false;
+
+    window.addEventListener('load', async function() {
+      try {
+        await tflite.setWasmPath('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/wasm/');
+        tfliteModel = await tflite.loadTFLiteModel(MODEL_URL);
+        modelReady  = true;
+        document.getElementById('status').innerText = 'AI model ready.';
+      } catch (err) {
+        document.getElementById('status').innerText = 'Model load failed: ' + err.message;
+      }
+    });
+
+    document.getElementById('cameraInputSingle').addEventListener('change', function(e) { processFile(e, false); });
+    document.getElementById('cameraInputBatch').addEventListener('change',  function(e) { processFile(e, true);  });
+
+    function processFile(e, useAI) {
+      const file = e.target.files[0];
+      if (!file) return;
+      document.getElementById('loader').style.display = 'block';
+      document.getElementById('status').innerText = 'Preparing image...';
+      document.getElementById('preview-container').innerHTML = '';
+      document.getElementById('uploadBtn').style.display = 'none';
+
+      const img    = new Image();
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        img.onload = function() {
+          if (useAI) {
+            if (!modelReady) {
+              document.getElementById('loader').style.display = 'none';
+              document.getElementById('status').innerText = 'Model not ready yet. Please wait.';
+              return;
+            }
+            document.getElementById('status').innerText = 'Detecting minifigures...';
+            detectMinifigs(img);
+          } else {
+            const MAX = 800;
+            const scale = img.width > MAX ? MAX / img.width : 1;
+            const c = document.createElement('canvas');
+            c.width = img.width * scale; c.height = img.height * scale;
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            croppedBase64Images = [c.toDataURL('image/jpeg', 0.6).split(',')[1]];
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('status').innerText = 'Ready to upload 1 Minifigure!';
+            renderPreviews(croppedBase64Images);
+            document.getElementById('uploadBtn').style.display = 'block';
+          }
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function detectMinifigs(originalImg) {
+      try {
+        const c640 = document.createElement('canvas');
+        c640.width = 640; c640.height = 640;
+        c640.getContext('2d').drawImage(originalImg, 0, 0, 640, 640);
+        const imgData = c640.getContext('2d').getImageData(0, 0, 640, 640);
+
+        const input = new Float32Array(640 * 640 * 3);
+        for (let i = 0; i < 640 * 640; i++) {
+          input[i*3]   = imgData.data[i*4]   / 255;
+          input[i*3+1] = imgData.data[i*4+1] / 255;
+          input[i*3+2] = imgData.data[i*4+2] / 255;
+        }
+
+        const inputT  = tf.tensor4d(input, [1, 640, 640, 3]);
+        const raw     = tfliteModel.predict(inputT);
+        const tensor  = Array.isArray(raw) ? raw[0] : raw;
+        const shape   = tensor.shape;
+        const data    = tensor.dataSync();
+        inputT.dispose(); tensor.dispose();
+
+        const channelFirst = (shape[1] === 5);
+        const numAnchors   = channelFirst ? shape[2] : shape[1];
+        const boxes = [];
+        for (let a = 0; a < numAnchors; a++) {
+          const cx   = channelFirst ? data[0*numAnchors+a] : data[a*5+0];
+          const cy   = channelFirst ? data[1*numAnchors+a] : data[a*5+1];
+          const w    = channelFirst ? data[2*numAnchors+a] : data[a*5+2];
+          const h    = channelFirst ? data[3*numAnchors+a] : data[a*5+3];
+          const conf = channelFirst ? data[4*numAnchors+a] : data[a*5+4];
+          if (conf > CONF_THRESHOLD) boxes.push({cx, cy, w, h, conf});
+        }
+
+        const finalBoxes = nms(boxes);
+        if (finalBoxes.length === 0) {
+          document.getElementById('loader').style.display = 'none';
+          document.getElementById('status').innerText = "AI couldn't find any Minifigures in this photo.";
+          return;
+        }
+
+        croppedBase64Images = [];
+        const sx = originalImg.width / 640, sy = originalImg.height / 640;
+        const PAD = 0.10;
+        finalBoxes.forEach(function(box) {
+          const bw = box.w * sx, bh = box.h * sy;
+          const cropX = Math.max(0, box.cx*sx - bw/2 - bw*PAD);
+          const cropY = Math.max(0, box.cy*sy - bh/2 - bh*PAD);
+          const cropW = Math.min(originalImg.width  - cropX, bw*(1+PAD*2));
+          const cropH = Math.min(originalImg.height - cropY, bh*(1+PAD*2));
+          const cc = document.createElement('canvas');
+          cc.width = cropW; cc.height = cropH;
+          cc.getContext('2d').drawImage(originalImg, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+          croppedBase64Images.push(cc.toDataURL('image/jpeg', 0.7).split(',')[1]);
+        });
+
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('status').innerText = 'AI found ' + croppedBase64Images.length + ' Minifigure(s)! Uncheck mistakes.';
+        renderPreviews(croppedBase64Images);
+        document.getElementById('uploadBtn').style.display = 'block';
+      } catch (err) {
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('status').innerText = 'TFLite Error: ' + err.message;
+      }
+    }
+
+    function nms(boxes) {
+      boxes.sort(function(a,b){ return b.conf - a.conf; });
+      const keep = [], sup = new Set();
+      for (let i = 0; i < boxes.length; i++) {
+        if (sup.has(i)) continue;
+        keep.push(boxes[i]);
+        for (let j = i+1; j < boxes.length; j++) {
+          if (!sup.has(j) && iou(boxes[i], boxes[j]) > IOU_THRESHOLD) sup.add(j);
+        }
+      }
+      return keep;
+    }
+
+    function iou(a, b) {
+      const ax1=a.cx-a.w/2, ay1=a.cy-a.h/2, ax2=a.cx+a.w/2, ay2=a.cy+a.h/2;
+      const bx1=b.cx-b.w/2, by1=b.cy-b.h/2, bx2=b.cx+b.w/2, by2=b.cy+b.h/2;
+      const ix = Math.max(0, Math.min(ax2,bx2) - Math.max(ax1,bx1));
+      const iy = Math.max(0, Math.min(ay2,by2) - Math.max(ay1,by1));
+      const inter = ix*iy;
+      return inter / ((ax2-ax1)*(ay2-ay1) + (bx2-bx1)*(by2-by1) - inter || 1);
+    }
+
+    function renderPreviews(imgArray) {
+      const container = document.getElementById('preview-container');
+      container.innerHTML = '';
+      imgArray.forEach(function(b64, idx) {
+        const wrap = document.createElement('div'); wrap.className = 'preview-wrapper';
+        const img  = document.createElement('img'); img.src = 'data:image/jpeg;base64,' + b64; img.className = 'crop-preview';
+        const cb   = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'preview-checkbox'; cb.checked = true; cb.dataset.index = idx;
+        wrap.appendChild(img); wrap.appendChild(cb); container.appendChild(wrap);
+      });
+    }
+
+    function uploadImages() {
+      const checkboxes = document.querySelectorAll('.preview-checkbox');
+      const finalImages = [];
+      checkboxes.forEach(function(cb) { if (cb.checked) finalImages.push(croppedBase64Images[cb.dataset.index]); });
+      if (finalImages.length === 0) { alert('Select at least one image.'); return; }
+
+      document.getElementById('status').innerText = 'Uploading ' + finalImages.length + ' to Drive & Sheet...';
+      document.getElementById('loader').style.display = 'block';
+      document.getElementById('uploadBtn').style.display = 'none';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          document.getElementById('loader').style.display = 'none';
+          document.getElementById('status').innerText = res;
+          document.getElementById('preview-container').innerHTML = '';
+        })
+        .withFailureHandler(function(err) {
+          document.getElementById('loader').style.display = 'none';
+          document.getElementById('status').innerText = 'Error: ' + err;
+          document.getElementById('uploadBtn').style.display = 'block';
+        })
+        .processCustomMobileImages(finalImages, SPREADSHEET_ID);
+    }
+  </script>
+</body>
+</html>
