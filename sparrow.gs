@@ -20,7 +20,8 @@ const LOT_MODES = {
 const CONFIG_KEYS = {
   WEB_APP_URL: 'CONFIG_WEB_APP_URL',
   DEFAULT_LISTING_DESC: 'CONFIG_DEFAULT_LISTING_DESC',
-  DEFAULT_CUSTOM_DESC: 'CONFIG_DEFAULT_CUSTOM_DESC'
+  DEFAULT_CUSTOM_DESC: 'CONFIG_DEFAULT_CUSTOM_DESC',
+  SETUP_TEMPLATE_SPREADSHEET_ID: 'CONFIG_SETUP_TEMPLATE_SPREADSHEET_ID'
 };
 
 const DOCUMENT_CONFIG_KEYS = {
@@ -68,10 +69,83 @@ function syncSettingsToScriptProperties() {
   PropertiesService.getScriptProperties().setProperties({
     [CONFIG_KEYS.WEB_APP_URL]: webAppUrl,
     [CONFIG_KEYS.DEFAULT_LISTING_DESC]: listingDescription,
-    [CONFIG_KEYS.DEFAULT_CUSTOM_DESC]: customDescription
+    [CONFIG_KEYS.DEFAULT_CUSTOM_DESC]: customDescription,
+    [CONFIG_KEYS.SETUP_TEMPLATE_SPREADSHEET_ID]: ss.getId()
   }, true);
 
-  SpreadsheetApp.getUi().alert('WhatFig settings synced to Script Properties.');
+  SpreadsheetApp.getUi().alert('WhatFig settings synced to Script Properties, including the setup template spreadsheet.');
+}
+
+function setupSheet() {
+  const ui = SpreadsheetApp.getUi();
+  const targetSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sourceSpreadsheetId = getWhatFigConfig_(CONFIG_KEYS.SETUP_TEMPLATE_SPREADSHEET_ID, '');
+
+  if (!sourceSpreadsheetId) {
+    ui.alert('WhatFig setup template is not configured yet. The add-on owner needs to sync settings from the master template spreadsheet first.');
+    return;
+  }
+
+  let sourceSpreadsheet;
+  try {
+    sourceSpreadsheet = SpreadsheetApp.openById(sourceSpreadsheetId);
+  } catch (err) {
+    ui.alert('WhatFig could not open the setup template spreadsheet. Check that the configured template spreadsheet is still accessible.');
+    return;
+  }
+
+  const requiredSheetNames = ['Template', 'Values'];
+  const missingSheetNames = requiredSheetNames.filter(function(sheetName) {
+    return !sourceSpreadsheet.getSheetByName(sheetName);
+  });
+
+  if (missingSheetNames.length > 0) {
+    ui.alert('The setup template spreadsheet is missing required sheets: ' + missingSheetNames.join(', '));
+    return;
+  }
+
+  const existingSheetNames = requiredSheetNames.filter(function(sheetName) {
+    return !!targetSpreadsheet.getSheetByName(sheetName);
+  });
+
+  if (existingSheetNames.length > 0) {
+    const response = ui.alert(
+      'Replace existing setup sheets?',
+      'This spreadsheet already has: ' + existingSheetNames.join(', ') + '.\n\nChoose Yes to replace them with fresh copies from the template spreadsheet.',
+      ui.ButtonSet.YES_NO
+    );
+
+    if (response !== ui.Button.YES) {
+      return;
+    }
+
+    existingSheetNames.forEach(function(sheetName) {
+      const existingSheet = targetSpreadsheet.getSheetByName(sheetName);
+      if (existingSheet) {
+        targetSpreadsheet.deleteSheet(existingSheet);
+      }
+    });
+  }
+
+  const copiedTemplateSheet = copySetupSheet_(sourceSpreadsheet, targetSpreadsheet, 'Template');
+  copySetupSheet_(sourceSpreadsheet, targetSpreadsheet, 'Values');
+  targetSpreadsheet.setActiveSheet(copiedTemplateSheet);
+
+  ui.alert('Sheet setup complete. Template and Values have been copied into this spreadsheet.');
+}
+
+function copySetupSheet_(sourceSpreadsheet, targetSpreadsheet, sheetName) {
+  const sourceSheet = sourceSpreadsheet.getSheetByName(sheetName);
+  const copiedSheet = sourceSheet.copyTo(targetSpreadsheet);
+  copiedSheet.setName(sheetName);
+
+  if (sourceSheet.isSheetHidden()) {
+    copiedSheet.hideSheet();
+  } else {
+    copiedSheet.showSheet();
+  }
+
+  return copiedSheet;
 }
 
 function useDefaultListingDescription() {
@@ -164,6 +238,8 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
 
   ui.createMenu('Sparrow Automation')
+    .addItem('Set up Sheet', 'setupSheet')
+    .addSeparator()
     .addItem('Fetch Bricklink ID Info', 'updateItems')
     
     //.addItem('Web Cam', 'openCameraModal')
