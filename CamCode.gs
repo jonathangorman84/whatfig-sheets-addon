@@ -161,7 +161,7 @@ function doGet(e) {
 function showQRCode() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ssId = ss.getId();
-  const webAppUrl = getWhatFigConfig_(CONFIG_KEYS.WEB_APP_URL, '');
+  const webAppUrl = getConfiguredWebAppUrl_();
   
   if (!webAppUrl || !webAppUrl.startsWith('http')) {
     SpreadsheetApp.getUi().alert('WhatFig is not fully configured yet. The add-on owner must set the published Web App URL.');
@@ -186,7 +186,7 @@ function showQRCode() {
 function showCustomQRCode() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ssId = ss.getId();
-  const webAppUrl = getWhatFigConfig_(CONFIG_KEYS.WEB_APP_URL, '');
+  const webAppUrl = getConfiguredWebAppUrl_();
   
   if (!webAppUrl || !webAppUrl.startsWith('http')) {
     SpreadsheetApp.getUi().alert('WhatFig is not fully configured yet. The add-on owner must set the published Web App URL.');
@@ -418,7 +418,7 @@ function doGet(e) {
 function showQRCode() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ssId = ss.getId();
-  const webAppUrl = getWhatFigConfig_(CONFIG_KEYS.WEB_APP_URL, '');
+  const webAppUrl = getConfiguredWebAppUrl_();
   
   if (!webAppUrl || !webAppUrl.startsWith('http')) {
     SpreadsheetApp.getUi().alert('WhatFig is not fully configured yet. The add-on owner must set the published Web App URL.');
@@ -443,7 +443,7 @@ function showQRCode() {
 function showCustomQRCode() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ssId = ss.getId();
-  const webAppUrl = getWhatFigConfig_(CONFIG_KEYS.WEB_APP_URL, '');
+  const webAppUrl = getConfiguredWebAppUrl_();
   
   if (!webAppUrl || !webAppUrl.startsWith('http')) {
     SpreadsheetApp.getUi().alert('WhatFig is not fully configured yet. The add-on owner must set the published Web App URL.');

@@ -31,6 +31,10 @@ const DOCUMENT_CONFIG_KEYS = {
 
 const DEFAULT_LISTING_DESCRIPTION = 'As-Shown, As-Described';
 const DEFAULT_CUSTOM_DESCRIPTION = 'As-Shown, As-Described';
+const SETTINGS_CELLS = {
+  WEB_APP_URL: 'B2',
+  TEMPLATE_SPREADSHEET_ID: 'B3'
+};
 
 /* ─────────────────────────── Custom Fig Workflow ───────────────────────── */
 const CUSTOM_COUNTER_KEY = 'LOT_COUNTER_CUSTOM';
@@ -38,6 +42,24 @@ const CUSTOM_COUNTER_KEY = 'LOT_COUNTER_CUSTOM';
 function getWhatFigConfig_(key, defaultValue) {
   const value = PropertiesService.getScriptProperties().getProperty(key);
   return value !== null && value !== undefined && value !== '' ? value : (defaultValue || '');
+}
+
+function getSettingsValue_(cellA1, defaultValue) {
+  const settingsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Settings');
+  if (!settingsSheet) {
+    return defaultValue || '';
+  }
+
+  const value = String(settingsSheet.getRange(cellA1).getValue() || '').trim();
+  return value || (defaultValue || '');
+}
+
+function getConfiguredWebAppUrl_() {
+  return getWhatFigConfig_(CONFIG_KEYS.WEB_APP_URL, getSettingsValue_(SETTINGS_CELLS.WEB_APP_URL, ''));
+}
+
+function getConfiguredTemplateSpreadsheetId_() {
+  return getWhatFigConfig_(CONFIG_KEYS.SETUP_TEMPLATE_SPREADSHEET_ID, getSettingsValue_(SETTINGS_CELLS.TEMPLATE_SPREADSHEET_ID, ''));
 }
 
 function getEffectiveListingDescription_() {
@@ -67,9 +89,10 @@ function syncSettingsToScriptProperties() {
     return;
   }
 
-  const webAppUrl = String(settingsSheet.getRange('B2').getValue() || '').trim();
+  const webAppUrl = String(settingsSheet.getRange(SETTINGS_CELLS.WEB_APP_URL).getValue() || '').trim();
   const listingDescription = getWhatFigConfig_(CONFIG_KEYS.DEFAULT_LISTING_DESC, DEFAULT_LISTING_DESCRIPTION);
   const customDescription = getWhatFigConfig_(CONFIG_KEYS.DEFAULT_CUSTOM_DESC, DEFAULT_CUSTOM_DESCRIPTION);
+  settingsSheet.getRange(SETTINGS_CELLS.TEMPLATE_SPREADSHEET_ID).setValue(ss.getId());
 
   PropertiesService.getScriptProperties().setProperties({
     [CONFIG_KEYS.WEB_APP_URL]: webAppUrl,
@@ -84,10 +107,10 @@ function syncSettingsToScriptProperties() {
 function setupSheet() {
   const ui = SpreadsheetApp.getUi();
   const targetSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const sourceSpreadsheetId = getWhatFigConfig_(CONFIG_KEYS.SETUP_TEMPLATE_SPREADSHEET_ID, '');
+  const sourceSpreadsheetId = getConfiguredTemplateSpreadsheetId_();
 
   if (!sourceSpreadsheetId) {
-    ui.alert('WhatFig setup template is not configured yet. The add-on owner needs to sync settings from the master template spreadsheet first.');
+    ui.alert('WhatFig setup template is not configured yet. Add the master template spreadsheet ID to Settings!' + SETTINGS_CELLS.TEMPLATE_SPREADSHEET_ID + ' or sync it from the owner template file.');
     return;
   }
 
@@ -140,6 +163,10 @@ function setupSheet() {
   const copiedTemplateSheet = copySetupSheet_(sourceSpreadsheet, targetSpreadsheet, 'Template');
   copySetupSheet_(sourceSpreadsheet, targetSpreadsheet, 'Values');
   copySetupSheet_(sourceSpreadsheet, targetSpreadsheet, 'Settings');
+  const copiedSettingsSheet = targetSpreadsheet.getSheetByName('Settings');
+  if (copiedSettingsSheet) {
+    copiedSettingsSheet.getRange(SETTINGS_CELLS.TEMPLATE_SPREADSHEET_ID).setValue(sourceSpreadsheetId);
+  }
   targetSpreadsheet.setActiveSheet(copiedTemplateSheet);
 
   ui.alert('Sheet setup complete. Template, Values, and Settings have been copied into this spreadsheet.');
