@@ -25,8 +25,12 @@ const CONFIG_KEYS = {
 };
 
 const DOCUMENT_CONFIG_KEYS = {
-  LISTING_DESC_OVERRIDE: 'DOC_LISTING_DESC_OVERRIDE'
+  LISTING_DESC_OVERRIDE: 'DOC_LISTING_DESC_OVERRIDE',
+  CUSTOM_DESC_OVERRIDE: 'DOC_CUSTOM_DESC_OVERRIDE'
 };
+
+const DEFAULT_LISTING_DESCRIPTION = 'As-Shown, As-Described';
+const DEFAULT_CUSTOM_DESCRIPTION = 'As-Shown, As-Described';
 
 /* ─────────────────────────── Custom Fig Workflow ───────────────────────── */
 const CUSTOM_COUNTER_KEY = 'LOT_COUNTER_CUSTOM';
@@ -41,11 +45,15 @@ function getEffectiveListingDescription_() {
   if (docValue !== null && docValue !== undefined && docValue !== '') {
     return docValue;
   }
-  return getWhatFigConfig_(CONFIG_KEYS.DEFAULT_LISTING_DESC, '');
+  return getWhatFigConfig_(CONFIG_KEYS.DEFAULT_LISTING_DESC, DEFAULT_LISTING_DESCRIPTION);
 }
 
 function getEffectiveCustomDescription_() {
-  return getWhatFigConfig_(CONFIG_KEYS.DEFAULT_CUSTOM_DESC, getEffectiveListingDescription_());
+  const docValue = PropertiesService.getDocumentProperties().getProperty(DOCUMENT_CONFIG_KEYS.CUSTOM_DESC_OVERRIDE);
+  if (docValue !== null && docValue !== undefined && docValue !== '') {
+    return docValue;
+  }
+  return getWhatFigConfig_(CONFIG_KEYS.DEFAULT_CUSTOM_DESC, DEFAULT_CUSTOM_DESCRIPTION);
 }
 
 // Owner-only helper. Run manually from the Apps Script editor when you need
@@ -60,11 +68,8 @@ function syncSettingsToScriptProperties() {
   }
 
   const webAppUrl = String(settingsSheet.getRange('B2').getValue() || '').trim();
-  const listingDescription = String(settingsSheet.getRange('B3').getValue() || '').trim();
-  const descriptionSheet = ss.getSheetByName('Description');
-  const customDescription = descriptionSheet
-    ? String(descriptionSheet.getRange('A2').getValue() || '').trim()
-    : listingDescription;
+  const listingDescription = getWhatFigConfig_(CONFIG_KEYS.DEFAULT_LISTING_DESC, DEFAULT_LISTING_DESCRIPTION);
+  const customDescription = getWhatFigConfig_(CONFIG_KEYS.DEFAULT_CUSTOM_DESC, DEFAULT_CUSTOM_DESCRIPTION);
 
   PropertiesService.getScriptProperties().setProperties({
     [CONFIG_KEYS.WEB_APP_URL]: webAppUrl,
@@ -94,7 +99,12 @@ function setupSheet() {
     return;
   }
 
-  const requiredSheetNames = ['Template', 'Values'];
+  if (sourceSpreadsheetId === targetSpreadsheet.getId()) {
+    ui.alert('Run Set up Sheet from a new user spreadsheet, not from the master template spreadsheet itself.');
+    return;
+  }
+
+  const requiredSheetNames = ['Template', 'Values', 'Settings'];
   const missingSheetNames = requiredSheetNames.filter(function(sheetName) {
     return !sourceSpreadsheet.getSheetByName(sheetName);
   });
@@ -129,9 +139,10 @@ function setupSheet() {
 
   const copiedTemplateSheet = copySetupSheet_(sourceSpreadsheet, targetSpreadsheet, 'Template');
   copySetupSheet_(sourceSpreadsheet, targetSpreadsheet, 'Values');
+  copySetupSheet_(sourceSpreadsheet, targetSpreadsheet, 'Settings');
   targetSpreadsheet.setActiveSheet(copiedTemplateSheet);
 
-  ui.alert('Sheet setup complete. Template and Values have been copied into this spreadsheet.');
+  ui.alert('Sheet setup complete. Template, Values, and Settings have been copied into this spreadsheet.');
 }
 
 function copySetupSheet_(sourceSpreadsheet, targetSpreadsheet, sheetName) {
@@ -150,7 +161,7 @@ function copySetupSheet_(sourceSpreadsheet, targetSpreadsheet, sheetName) {
 
 function useDefaultListingDescription() {
   PropertiesService.getDocumentProperties().deleteProperty(DOCUMENT_CONFIG_KEYS.LISTING_DESC_OVERRIDE);
-  SpreadsheetApp.getUi().alert('Listing description reset to the default value.');
+  SpreadsheetApp.getUi().alert('Listing description reset to the default value:\n\n' + getEffectiveListingDescription_());
 }
 
 function promptForCustomListingDescription() {
@@ -177,6 +188,37 @@ function promptForCustomListingDescription() {
 
 function showCurrentListingDescription() {
   SpreadsheetApp.getUi().alert('Current listing description:\n\n' + (getEffectiveListingDescription_() || '(empty)'));
+}
+
+function useDefaultCustomDescription() {
+  PropertiesService.getDocumentProperties().deleteProperty(DOCUMENT_CONFIG_KEYS.CUSTOM_DESC_OVERRIDE);
+  SpreadsheetApp.getUi().alert('Custom fig description reset to the default value:\n\n' + getEffectiveCustomDescription_());
+}
+
+function promptForCustomFigDescription() {
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.prompt(
+    'Set Custom Fig Description',
+    'Enter the description to use for custom fig rows in this spreadsheet.',
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (response.getSelectedButton() !== ui.Button.OK) {
+    return;
+  }
+
+  const value = String(response.getResponseText() || '').trim();
+  if (!value) {
+    ui.alert('No description entered. Keeping the current value.');
+    return;
+  }
+
+  PropertiesService.getDocumentProperties().setProperty(DOCUMENT_CONFIG_KEYS.CUSTOM_DESC_OVERRIDE, value);
+  ui.alert('Custom fig description updated for this spreadsheet.\n\nCurrent value:\n' + value);
+}
+
+function showCurrentCustomDescription() {
+  SpreadsheetApp.getUi().alert('Current custom fig description:\n\n' + (getEffectiveCustomDescription_() || '(empty)'));
 }
 
 function resetCustomCounter() {
@@ -251,8 +293,14 @@ function onOpen() {
     .addSubMenu(
       ui.createMenu('Listing Description')
         .addItem('Use Default Description', 'useDefaultListingDescription')
-        .addItem('Set Custom Description...', 'promptForCustomListingDescription')
+        .addItem('Set Description...', 'promptForCustomListingDescription')
         .addItem('Show Current Description', 'showCurrentListingDescription')
+    )
+    .addSubMenu(
+      ui.createMenu('Custom Fig Description')
+        .addItem('Use Default Description', 'useDefaultCustomDescription')
+        .addItem('Set Description...', 'promptForCustomFigDescription')
+        .addItem('Show Current Description', 'showCurrentCustomDescription')
     )
     .addSeparator()
     .addSubMenu(
