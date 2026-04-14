@@ -179,11 +179,16 @@ function setupSheet() {
   if (copiedSettingsSheet) {
     copiedSettingsSheet.getRange(SETTINGS_CELLS.TEMPLATE_SPREADSHEET_ID).setValue(sourceSpreadsheetId);
   }
+  // Hide the Settings tab — users don't need to see it.
+  if (copiedSettingsSheet) {
+    copiedSettingsSheet.hideSheet();
+  }
   targetSpreadsheet.setActiveSheet(copiedTemplateSheet);
 
   // Share this copied sheet with the web app owner so the owner-deployed web app can write to it.
-  const ownerEmail = getWhatFigConfig_(CONFIG_KEYS.OWNER_EMAIL,
-    (copiedSettingsSheet ? String(copiedSettingsSheet.getRange(SETTINGS_CELLS.OWNER_EMAIL).getValue() || '').trim() : ''));
+  const ownerEmail = copiedSettingsSheet
+    ? String(copiedSettingsSheet.getRange(SETTINGS_CELLS.OWNER_EMAIL).getValue() || '').trim()
+    : getWhatFigConfig_(CONFIG_KEYS.OWNER_EMAIL, '');
   let shareMessage = '';
   if (ownerEmail) {
     try {
@@ -201,9 +206,10 @@ function setupSheet() {
 
 // Shares this spreadsheet with the WhatFig owner so the owner-deployed web app can write to it.
 function shareSheetWithOwner() {
-  const ownerEmail = getWhatFigConfig_(CONFIG_KEYS.OWNER_EMAIL, '');
+  // Read owner email from Settings!B4 directly — script properties are not copied with the sheet.
+  const ownerEmail = getSettingsValue_(SETTINGS_CELLS.OWNER_EMAIL, getWhatFigConfig_(CONFIG_KEYS.OWNER_EMAIL, ''));
   if (!ownerEmail) {
-    SpreadsheetApp.getUi().alert('No owner email is configured. Please run Sync Settings from the master template spreadsheet first.');
+    SpreadsheetApp.getUi().alert('No owner email found in Settings!B4. Make sure the Settings tab was copied from the master template and that B4 contains the owner email.');
     return;
   }
   try {
