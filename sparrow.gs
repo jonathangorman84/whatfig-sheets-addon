@@ -21,7 +21,8 @@ const CONFIG_KEYS = {
   WEB_APP_URL: 'CONFIG_WEB_APP_URL',
   DEFAULT_LISTING_DESC: 'CONFIG_DEFAULT_LISTING_DESC',
   DEFAULT_CUSTOM_DESC: 'CONFIG_DEFAULT_CUSTOM_DESC',
-  SETUP_TEMPLATE_SPREADSHEET_ID: 'CONFIG_SETUP_TEMPLATE_SPREADSHEET_ID'
+  SETUP_TEMPLATE_SPREADSHEET_ID: 'CONFIG_SETUP_TEMPLATE_SPREADSHEET_ID',
+  OWNER_EMAIL: 'CONFIG_OWNER_EMAIL'
 };
 
 const DOCUMENT_CONFIG_KEYS = {
@@ -33,7 +34,8 @@ const DEFAULT_LISTING_DESCRIPTION = 'As-Shown, As-Described';
 const DEFAULT_CUSTOM_DESCRIPTION = 'As-Shown, As-Described';
 const SETTINGS_CELLS = {
   WEB_APP_URL: 'B2',
-  TEMPLATE_SPREADSHEET_ID: 'B3'
+  TEMPLATE_SPREADSHEET_ID: 'B3',
+  OWNER_EMAIL: 'B4'
 };
 
 /* ─────────────────────────── Custom Fig Workflow ───────────────────────── */
@@ -94,14 +96,24 @@ function syncSettingsToScriptProperties() {
   const customDescription = getWhatFigConfig_(CONFIG_KEYS.DEFAULT_CUSTOM_DESC, DEFAULT_CUSTOM_DESCRIPTION);
   settingsSheet.getRange(SETTINGS_CELLS.TEMPLATE_SPREADSHEET_ID).setValue(ss.getId());
 
+  // Auto-populate owner email in B4 with the current user's email if not already set.
+  let ownerEmail = String(settingsSheet.getRange(SETTINGS_CELLS.OWNER_EMAIL).getValue() || '').trim();
+  if (!ownerEmail) {
+    ownerEmail = Session.getActiveUser().getEmail();
+    if (ownerEmail) {
+      settingsSheet.getRange(SETTINGS_CELLS.OWNER_EMAIL).setValue(ownerEmail);
+    }
+  }
+
   PropertiesService.getScriptProperties().setProperties({
     [CONFIG_KEYS.WEB_APP_URL]: webAppUrl,
     [CONFIG_KEYS.DEFAULT_LISTING_DESC]: listingDescription,
     [CONFIG_KEYS.DEFAULT_CUSTOM_DESC]: customDescription,
-    [CONFIG_KEYS.SETUP_TEMPLATE_SPREADSHEET_ID]: ss.getId()
+    [CONFIG_KEYS.SETUP_TEMPLATE_SPREADSHEET_ID]: ss.getId(),
+    [CONFIG_KEYS.OWNER_EMAIL]: ownerEmail
   }, true);
 
-  SpreadsheetApp.getUi().alert('WhatFig settings synced to Script Properties, including the setup template spreadsheet.');
+  SpreadsheetApp.getUi().alert('WhatFig settings synced to Script Properties, including the setup template spreadsheet.' + (ownerEmail ? '\nOwner email: ' + ownerEmail : ''));
 }
 
 function setupSheet() {
@@ -169,7 +181,22 @@ function setupSheet() {
   }
   targetSpreadsheet.setActiveSheet(copiedTemplateSheet);
 
-  ui.alert('Sheet setup complete. Template, Values, and Settings have been copied into this spreadsheet.');
+  // Share this copied sheet with the web app owner so the owner-deployed web app can write to it.
+  const ownerEmail = getWhatFigConfig_(CONFIG_KEYS.OWNER_EMAIL,
+    (copiedSettingsSheet ? String(copiedSettingsSheet.getRange(SETTINGS_CELLS.OWNER_EMAIL).getValue() || '').trim() : ''));
+  let shareMessage = '';
+  if (ownerEmail) {
+    try {
+      targetSpreadsheet.addEditor(ownerEmail);
+      shareMessage = '\n\nThis sheet has been shared with the WhatFig owner (' + ownerEmail + ') so the mobile scanner can write to it.';
+    } catch (err) {
+      shareMessage = '\n\nNote: Could not automatically share with owner (' + ownerEmail + '). You may need to share it manually.';
+    }
+  } else {
+    shareMessage = '\n\nNote: No owner email is configured in Settings!B4. The mobile scanner may not have permission to write to this sheet.';
+  }
+
+  ui.alert('Sheet setup complete. Template, Values, and Settings have been copied into this spreadsheet.' + shareMessage);
 }
 
 function copySetupSheet_(sourceSpreadsheet, targetSpreadsheet, sheetName) {
