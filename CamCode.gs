@@ -176,6 +176,7 @@ function showQRCode() {
       <h2>📱 Mobile Scanner</h2>
       <img src="${qrUrl}" width="300" height="300" style="border: 2px solid #ccc; border-radius: 10px;"/>
       <p style="color: #666;">Point your phone camera here to open.</p>
+      <p style="color: #999; font-size: 11px;">Target sheet ID: ${ssId}</p>
     </div>
   `).setWidth(350).setHeight(450);
   
@@ -202,6 +203,7 @@ function showCustomQRCode() {
       <h2>📱 Custom Scanner</h2>
       <img src="${qrUrl}" width="300" height="300" style="border: 2px solid #ccc; border-radius: 10px;"/>
       <p style="color: #666;">Point your phone camera here to open the Custom Minifig app.</p>
+      <p style="color: #999; font-size: 11px;">Target sheet ID: ${ssId}</p>
     </div>
   `).setWidth(350).setHeight(450);
   
@@ -209,9 +211,26 @@ function showCustomQRCode() {
 }
 
 // 3. Process the Batch Images from the Phone
+function resolveTargetSpreadsheetForMobile_(ssId) {
+  if (!ssId) {
+    throw new Error('Missing spreadsheet ID in QR URL. Re-open the scanner by scanning a fresh QR code from the target sheet.');
+  }
+
+  try {
+    return SpreadsheetApp.openById(ssId);
+  } catch (err) {
+    throw new Error(
+      'No permission for target sheet ID ' + ssId + '. ' +
+      'Make sure the phone is signed into a Google account that has Editor access to that copied sheet. ' +
+      'Open this sheet directly: https://docs.google.com/spreadsheets/d/' + ssId + '/edit. ' +
+      'Details: ' + err.message
+    );
+  }
+}
+
 function processMobileImages(imageArray, ssId) {
   try {
-    const ss = ssId ? SpreadsheetApp.openById(ssId) : SpreadsheetApp.getActiveSpreadsheet();
+    const ss = resolveTargetSpreadsheetForMobile_(ssId);
     const sheet = ss.getActiveSheet();
     const folder = getOrCreatePublicFolder();
     let addedCount = 0;
@@ -433,6 +452,7 @@ function showQRCode() {
       <h2>📱 Mobile Scanner</h2>
       <img src="${qrUrl}" width="300" height="300" style="border: 2px solid #ccc; border-radius: 10px;"/>
       <p style="color: #666;">Point your phone camera here to open.</p>
+      <p style="color: #999; font-size: 11px;">Target sheet ID: ${ssId}</p>
     </div>
   `).setWidth(350).setHeight(450);
   
@@ -459,6 +479,7 @@ function showCustomQRCode() {
       <h2>📱 Custom Scanner</h2>
       <img src="${qrUrl}" width="300" height="300" style="border: 2px solid #ccc; border-radius: 10px;"/>
       <p style="color: #666;">Point your phone camera here to open the Custom Minifig app.</p>
+      <p style="color: #999; font-size: 11px;">Target sheet ID: ${ssId}</p>
     </div>
   `).setWidth(350).setHeight(450);
   
@@ -468,7 +489,7 @@ function showCustomQRCode() {
 // 3. Process the Batch Images from the Phone
 function processMobileImages(imageArray, ssId) {
   try {
-    const ss = ssId ? SpreadsheetApp.openById(ssId) : SpreadsheetApp.getActiveSpreadsheet();
+    const ss = resolveTargetSpreadsheetForMobile_(ssId);
     const sheet = ss.getActiveSheet();
     const folder = getOrCreatePublicFolder();
     let addedCount = 0;

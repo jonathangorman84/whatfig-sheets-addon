@@ -254,9 +254,14 @@ function resetCustomCounter() {
 }
 
 // This receives the array of cropped images directly from the new Custom HTML scanner
-function processCustomMobileImages(imageArray) {
+function processCustomMobileImages(imageArray, ssId) {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const ss = ssId ? SpreadsheetApp.openById(ssId) : SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      throw new Error('Missing target spreadsheet. Re-open the custom scanner by scanning a fresh QR code from the target sheet.');
+    }
+
+    const sheet = ss.getActiveSheet();
     const desc = getEffectiveCustomDescription_(); 
     
     let addedCount = 0;
@@ -299,7 +304,8 @@ function processCustomMobileImages(imageArray) {
 
     return "Successfully added " + addedCount + " Custom Minifigs!";
   } catch (err) {
-    return "Error: " + err.message;
+    const target = ssId ? (' (target sheet ID: ' + ssId + ')') : '';
+    return "Error" + target + ": " + err.message;
   }
 }
 /* ────────────────────────────────── UI ────────────────────────────────── */
