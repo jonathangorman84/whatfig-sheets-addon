@@ -260,12 +260,9 @@ function processMobileImages(imageArray, ssId) {
 
        // 1. Insert ID
        sheet.getRange(row, 3).setValue(itemId);
-       
-       // 2. Trigger your existing updateItems() to fill Title, Category, etc.
-       updateItems(); 
-       
-       // 3. Overwrite the default Bricklink image with your physical cropped image
-       sheet.getRange(row, 14).setValue(imageUrl); 
+
+       // Fill the same row directly on the explicit target sheet.
+       populateDetectedMinifigRow_(sheet, row, itemId, imageUrl);
        
        addedCount++;
     }
@@ -273,6 +270,32 @@ function processMobileImages(imageArray, ssId) {
   } catch (err) {
     return '❌ Error: ' + err.message;
   }
+}
+
+function populateDetectedMinifigRow_(sheet, row, itemId, imageUrl) {
+  const type = identifyItemType(itemId);
+  const isSet = type === 'SET';
+  const resolvedId = isSet && !/-\d+$/.test(itemId) ? (itemId + '-1') : itemId;
+  const itemNameData = getItemNamenew(resolvedId, isSet ? 'S' : 'M');
+  const itemName = itemNameData && itemNameData.itemName ? itemNameData.itemName : resolvedId;
+
+  const category  = isSet ? 'LEGO Sets' : 'LEGO Minifigures';
+  const weight    = isSet ? '8-11 oz' : '0-1 oz';
+  const condition = isSet ? 'New in box' : 'Used - Good';
+  const desc = getWhatFigConfig_(CONFIG_KEYS.DEFAULT_LISTING_DESC, DEFAULT_LISTING_DESCRIPTION);
+  const prefix = buildLotPrefix();
+
+  sheet.getRange(row, 1).setValue('Toys & Hobbies');
+  sheet.getRange(row, 2).setValue(category);
+  sheet.getRange(row, 3).setValue(prefix + itemName);
+  sheet.getRange(row, 4).setValue(desc);
+  sheet.getRange(row, 5).setValue(1);
+  sheet.getRange(row, 6).setValue('Auction');
+  sheet.getRange(row, 7).setValue('1');
+  sheet.getRange(row, 8).setValue(weight);
+  sheet.getRange(row, 10).setValue('Not Hazmat');
+  sheet.getRange(row, 11).setValue(condition);
+  sheet.getRange(row, 14).setValue(imageUrl);
 }
 function openCameraModal() {
   const html = HtmlService
@@ -519,12 +542,9 @@ function processMobileImages(imageArray, ssId) {
 
        // 1. Insert ID
        sheet.getRange(row, 3).setValue(itemId);
-       
-       // 2. Trigger your existing updateItems() to fill Title, Category, etc.
-       updateItems(); 
-       
-       // 3. Overwrite the default Bricklink image with your physical cropped image
-       sheet.getRange(row, 14).setValue(imageUrl); 
+
+       // Fill the same row directly on the explicit target sheet.
+       populateDetectedMinifigRow_(sheet, row, itemId, imageUrl);
        
        addedCount++;
     }
