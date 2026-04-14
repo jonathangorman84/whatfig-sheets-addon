@@ -150,6 +150,7 @@ function doGet(e) {
 
   const template = HtmlService.createTemplateFromFile(isCustom ? 'ScannerCustom' : 'MobileApp');
   template.ssId = ssId;
+  template.buildTag = 'a04e0a4';
 
   return template.evaluate()
     .setTitle(isCustom ? 'WhatFig Custom Scanner' : 'WhatFig Mobile Scanner')

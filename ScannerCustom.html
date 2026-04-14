@@ -48,6 +48,7 @@
     const CONF_THRESHOLD = 0.40;
     const IOU_THRESHOLD  = 0.45;
     const SPREADSHEET_ID = '<?= ssId ?>';
+    const BUILD_TAG = '<?= buildTag ?>';
 
     let croppedBase64Images = [];
     let tfliteModel = null;
@@ -55,7 +56,7 @@
 
     window.addEventListener('load', async function() {
       document.getElementById('targetSheetInfo').innerText = SPREADSHEET_ID
-        ? ('Target sheet ID: ' + SPREADSHEET_ID)
+        ? ('Target sheet ID: ' + SPREADSHEET_ID + ' | Build: ' + BUILD_TAG)
         : 'Target sheet ID missing in QR link';
       try {
         await tflite.setWasmPath('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/wasm/');
@@ -236,7 +237,9 @@
         })
         .withFailureHandler(function(err) {
           document.getElementById('loader').style.display = 'none';
-          document.getElementById('status').innerText = 'Error: ' + err;
+          const msg = (err && err.message) ? err.message : String(err);
+          const stack = (err && err.stackTrace && err.stackTrace.length) ? ('\n' + err.stackTrace.map(function(s){ return s.function + ':' + s.lineNumber; }).join(' | ')) : '';
+          document.getElementById('status').innerText = 'Error: ' + msg + stack;
           document.getElementById('uploadBtn').style.display = 'block';
         })
         .processCustomMobileImages(finalImages, SPREADSHEET_ID);
