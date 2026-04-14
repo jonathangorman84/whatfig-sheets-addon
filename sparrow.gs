@@ -199,6 +199,21 @@ function setupSheet() {
   ui.alert('Sheet setup complete. Template, Values, and Settings have been copied into this spreadsheet.' + shareMessage);
 }
 
+// Shares this spreadsheet with the WhatFig owner so the owner-deployed web app can write to it.
+function shareSheetWithOwner() {
+  const ownerEmail = getWhatFigConfig_(CONFIG_KEYS.OWNER_EMAIL, '');
+  if (!ownerEmail) {
+    SpreadsheetApp.getUi().alert('No owner email is configured. Please run Sync Settings from the master template spreadsheet first.');
+    return;
+  }
+  try {
+    SpreadsheetApp.getActiveSpreadsheet().addEditor(ownerEmail);
+    SpreadsheetApp.getUi().alert('This sheet has been shared with the WhatFig owner (' + ownerEmail + ').\nThe mobile scanner should now be able to write to this spreadsheet.');
+  } catch (err) {
+    SpreadsheetApp.getUi().alert('Could not share with owner (' + ownerEmail + '). Error: ' + err.message);
+  }
+}
+
 function copySetupSheet_(sourceSpreadsheet, targetSpreadsheet, sheetName) {
   const sourceSheet = sourceSpreadsheet.getSheetByName(sheetName);
   const copiedSheet = sourceSheet.copyTo(targetSpreadsheet);
@@ -341,6 +356,7 @@ function onOpen() {
 
   ui.createMenu('Sparrow Automation')
     .addItem('Set up Sheet', 'setupSheet')
+    .addItem('Share Sheet with Scanner', 'shareSheetWithOwner')
     .addSeparator()
     .addItem('Fetch Bricklink ID Info', 'updateItems')
     
